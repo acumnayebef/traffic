@@ -1,0 +1,10 @@
+name: build-dylib
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      # ... и так далее (оригинальный скрипт сборщика)
