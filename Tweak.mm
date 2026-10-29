@@ -128,7 +128,7 @@ void new_HR_MainMenuHandler_Start(void* instance) {
     self.toggleButton.layer.shadowOpacity = 0.9;
     self.toggleButton.layer.shadowRadius = 12;
     
-    [self.toggleButton addTarget:self action:@selector(toggleMenu) forControlEvents:UIEventTouchUpInside];
+    [self.toggleButton addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
     
     UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(buttonDragged:)];
     [self.toggleButton addGestureRecognizer:panGesture];
@@ -219,7 +219,7 @@ void new_HR_MainMenuHandler_Start(void* instance) {
         tgkLabel.textColor = [UIColor colorWithRed:0.7 green:0.7 blue:0.8 alpha:0.8];
         tgkLabel.font = [UIFont systemFontOfSize:13];
         tgkLabel.textAlignment = NSTextAlignmentCenter;
-      [self.contentView addSubview:tgkLabel];
+[self.contentView addSubview:tgkLabel];
 UIButton *tgButton = [UIButton buttonWithType:UIButtonTypeCustom];
 tgButton.frame = CGRectMake(35, 95, 240, 45);
 tgButton.backgroundColor = [UIColor colorWithRed:0.00 green:0.53 blue:0.82 alpha:1.0];
@@ -261,7 +261,7 @@ if ([[UIApplication sharedApplication] canOpenURL:tgURL]) {
 }
 }
 @end
-// --- КЛАСС ДЛЯ ПРЯМОЙ ЗАМЕНЫ УКАЗАТЕЛЕЙ ФУНКЦИЙ (БЕЗ SUBSTRATE) ---
+// --- КЛАСС ДЛЯ ПРЯМОЙ ЗАМЕНЫ УКАЗАТЕЛЕЙ ФУНКЦИЙ ---
 @interface HookManager : NSObject
 @end
 @implementation HookManager
@@ -269,8 +269,7 @@ if ([[UIApplication sharedApplication] canOpenURL:tgURL]) {
 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 static CosmicMenuWindow *menuInstance = nil;
 menuInstance = [[CosmicMenuWindow alloc] init];
-});uintptr_t unityBase = get_UnityFramework_BaseAddress();// Заменяем указатели оригинальных функций на наши кастомные методы напрямую
-old_HR_PlayerHandler_OnCollisionEnter = (void ()(void, void*))(unityBase + 0x3E452A4);
+});uintptr_t unityBase = get_UnityFramework_BaseAddress();old_HR_PlayerHandler_OnCollisionEnter = (void ()(void, void*))(unityBase + 0x3E452A4);
 old_HR_PlayerHandler_Update = (void ()(void))(unityBase + 0x3E443E0);
 old_GamePlayScoresManager_Update = (void ()(void))(unityBase + 0x3BA37D8);
 old_HR_MainMenuHandler_Start = (void ()(void))(unityBase + 0x3E3CF58);
