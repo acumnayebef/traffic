@@ -2,7 +2,7 @@
 #import <objc/runtime.h>
 #include <mach-o/dyld.h>
 #include <cstring>
-#include "dobby.h" // FILL: положи dobby.h и libdobby.a в проект, линкуй с -ldobby
+#include "dobby.h"
 
 // --- ЧАСТЬ 1: ГЛОБАЛЬНЫЕ ФЛАГИ И ЛОГИКА ВЗЛОМА ПАМЯТИ ---
 
