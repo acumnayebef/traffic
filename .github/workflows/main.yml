@@ -1,3 +1,16 @@
+      - name: Build Dobby
+        run: |
+          git clone --depth 1 https://github.com/jmpews/Dobby.git
+          cmake -S Dobby -B Dobby/build \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DDOBBY_GENERATE_SHARED=OFF
+          cmake --build Dobby/build -j4
+          find Dobby/build -name "libdobby.a"
+
 name: Build Dylib
 on: [push, pull_request]
 
