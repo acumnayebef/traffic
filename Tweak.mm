@@ -1,6 +1,5 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
-#include <substrate.h>
 #include <mach-o/dyld.h>
 #include <cstring>
 
@@ -11,7 +10,7 @@ BOOL infiniteTimeEnabled = NO;
 BOOL scoreMultiplierEnabled = NO;
 BOOL moneyHackEnabled = NO;
 
-// Динамический поиск базового адреса UnityFramework для работы через сайдлоад (Scarlet, Esign и др.)
+// Динамический поиск базового адреса UnityFramework для работы через сайдлоад
 uintptr_t get_UnityFramework_BaseAddress() {
     uint32_t count = _dyld_image_count();
     for (uint32_t i = 0; i < count; i++) {
@@ -23,37 +22,47 @@ uintptr_t get_UnityFramework_BaseAddress() {
     return (uintptr_t)_dyld_get_image_header(0);
 }
 
-// 1. Модуль: Бессмертие (Блокировка урона при аварии трафика)
+// Указатели на оригинальные функции игры для вызова внутри хуков
 void (*old_HR_PlayerHandler_OnCollisionEnter)(void* instance, void* collision);
+void (*old_HR_PlayerHandler_Update)(void* instance);
+void (*old_GamePlayScoresManager_Update)(void* instance);
+void (*old_HR_MainMenuHandler_Start)(void* instance);
+
+// 1. Модуль: Бессмертие (Блокировка урона при аварии трафика)
 void new_HR_PlayerHandler_OnCollisionEnter(void* instance, void* collision) {
     if (godModeEnabled) { 
         return; 
     }
-    old_HR_PlayerHandler_OnCollisionEnter(instance, collision);
+    if (old_HR_PlayerHandler_OnCollisionEnter) {
+        old_HR_PlayerHandler_OnCollisionEnter(instance, collision);
+    }
 }
 
 // 2. Модуль: Заморозка времени гонки на 99 секундах
-void (*old_HR_PlayerHandler_Update)(void* instance);
 void new_HR_PlayerHandler_Update(void* instance) {
-    old_HR_PlayerHandler_Update(instance);
+    if (old_HR_PlayerHandler_Update) {
+        old_HR_PlayerHandler_Update(instance);
+    }
     if (instance != nullptr && infiniteTimeEnabled) {
         *(float*)((uintptr_t)instance + 0x48) = 99.0f;
     }
 }
 
 // 3. Модуль: Безумный множитель очков x500
-void (*old_GamePlayScoresManager_Update)(void* instance);
 void new_GamePlayScoresManager_Update(void* instance) {
-    old_GamePlayScoresManager_Update(instance);
+    if (old_GamePlayScoresManager_Update) {
+        old_GamePlayScoresManager_Update(instance);
+    }
     if (instance != nullptr && scoreMultiplierEnabled) {
         *(float*)((uintptr_t)instance + 0x4C) = 500.0f;
     }
 }
 
-// 4. Модуль: Разблокировка 1,000,000$ (Внутренний дебаг-переключатель разработчиков)
-void (*old_HR_MainMenuHandler_Start)(void* instance);
+// 4. Модуль: Разблокировка 1,000,000$ (Дебаг-переключатель)
 void new_HR_MainMenuHandler_Start(void* instance) {
-    old_HR_MainMenuHandler_Start(instance);
+    if (old_HR_MainMenuHandler_Start) {
+        old_HR_MainMenuHandler_Start(instance);
+    }
     if (moneyHackEnabled) {
         uintptr_t unityBase = get_UnityFramework_BaseAddress();
         void* (*HR_HighwayRacerProperties_get_Instance)() = (void*(*)())(unityBase + 0x3E37DA8);
@@ -96,7 +105,6 @@ void new_HR_MainMenuHandler_Start(void* instance) {
     return self;
 }
 
-// Пропуск кликов сквозь пустое пространство меню обратно в игру
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
     UIView *hitView = [super hitTest:point withEvent:event];
     if (hitView == self || hitView == self.rootViewController.view) { 
@@ -105,26 +113,23 @@ void new_HR_MainMenuHandler_Start(void* instance) {
     return hitView;
 }
 
-// Создание плавающей кнопки-планеты 🪐 с неоновым свечением
 - (void)createFloatingButton {
     self.toggleButton = [UIButton buttonWithType:UIButtonTypeCustom];
     self.toggleButton.frame = CGRectMake(40, 100, 60, 60);
     self.toggleButton.backgroundColor = [UIColor colorWithRed:0.07 green:0.04 blue:0.22 alpha:0.85];
     self.toggleButton.layer.cornerRadius = 30;
     self.toggleButton.layer.borderWidth = 2;
-    self.toggleButton.layer.borderColor = [UIColor colorWithRed:0.00 green:0.80 blue:1.00 alpha:1.0].CGColor; // Неоновый голубой
+    self.toggleButton.layer.borderColor = [UIColor colorWithRed:0.00 green:0.80 blue:1.00 alpha:1.0].CGColor;
     [self.toggleButton setTitle:@"🪐" forState:UIControlStateNormal];
     self.toggleButton.titleLabel.font = [UIFont systemFontOfSize:28];
     
-    // Эффект фиолетовой туманности (свечение)
     self.toggleButton.layer.shadowColor = [UIColor colorWithRed:0.50 green:0.00 blue:1.00 alpha:1.0].CGColor;
     self.toggleButton.layer.shadowOffset = CGSizeZero;
     self.toggleButton.layer.shadowOpacity = 0.9;
     self.toggleButton.layer.shadowRadius = 12;
     
-    [self.toggleButton addTarget:self action:@selector(toggleMenu) forControlEvents:UIControlEventTouchUpInside];
+    [self.toggleButton addTarget:self action:@selector(toggleMenu) forControlEvents:UIEventTouchUpInside];
     
-    // Перетаскивание кнопки пальцем по экрану (Drag & Drop)
     UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(buttonDragged:)];
     [self.toggleButton addGestureRecognizer:panGesture];
     [self addSubview:self.toggleButton];
@@ -136,14 +141,13 @@ void new_HR_MainMenuHandler_Start(void* instance) {
     [gesture setTranslation:CGPointZero inView:self];
 }
 
-// Окно самого меню (Глубокий космос + размытие заднего плана)
 - (void)createCosmicMenu {
     self.menuView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 340, 380)];
     self.menuView.center = CGPointMake([UIScreen mainScreen].bounds.size.width / 2, [UIScreen mainScreen].bounds.size.height / 2);
-    self.menuView.backgroundColor = [UIColor colorWithRed:0.04 green:0.02 blue:0.13 alpha:0.92]; // Темный космос
+    self.menuView.backgroundColor = [UIColor colorWithRed:0.04 green:0.02 blue:0.13 alpha:0.92];
     self.menuView.layer.cornerRadius = 16;
     self.menuView.layer.borderWidth = 1.5;
-    self.menuView.layer.borderColor = [UIColor colorWithRed:0.38 green:0.00 blue:0.93 alpha:1.0].CGColor; // Неоновый фиолетовый
+    self.menuView.layer.borderColor = [UIColor colorWithRed:0.38 green:0.00 blue:0.93 alpha:1.0].CGColor;
     self.menuView.hidden = YES;
     
     UIBlurEffect *blurEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleDark];
@@ -153,7 +157,6 @@ void new_HR_MainMenuHandler_Start(void* instance) {
     blurView.clipsToBounds = YES;
     [self.menuView addSubview:blurView];
     
-    // Заголовок в стиле Sci-Fi консоли
     UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 12, 340, 30)];
     titleLabel.text = @"DEVXANTAPERS OS v1.0";
     titleLabel.textColor = [UIColor colorWithRed:0.00 green:0.80 blue:1.00 alpha:1.0];
@@ -161,7 +164,6 @@ void new_HR_MainMenuHandler_Start(void* instance) {
     titleLabel.textAlignment = NSTextAlignmentCenter;
     [self.menuView addSubview:titleLabel];
     
-    // Кнопка переключения на вкладку читов
     UIButton *cheatsTab = [UIButton buttonWithType:UIButtonTypeCustom];
     cheatsTab.frame = CGRectMake(15, 55, 150, 35);
     cheatsTab.backgroundColor = [UIColor colorWithRed:0.09 green:0.05 blue:0.28 alpha:0.7];
@@ -172,7 +174,6 @@ void new_HR_MainMenuHandler_Start(void* instance) {
     [cheatsTab addTarget:self action:@selector(showCheatsTab) forControlEvents:UIControlEventTouchUpInside];
     [self.menuView addSubview:cheatsTab];
     
-    // Кнопка переключения на вкладку создателя
     UIButton *creatorsTab = [UIButton buttonWithType:UIButtonTypeCustom];
     creatorsTab.frame = CGRectMake(175, 55, 150, 35);
     creatorsTab.backgroundColor = [UIColor colorWithRed:0.09 green:0.05 blue:0.28 alpha:0.7];
@@ -195,7 +196,6 @@ void new_HR_MainMenuHandler_Start(void* instance) {
 - (void)showCheatsTab { self.currentTab = @"CHEATS"; [self renderTabs]; }
 - (void)showCreatorsTab { self.currentTab = @"CREATORS"; [self renderTabs]; }
 
-// Наполнение содержимого вкладок
 - (void)renderTabs {
     for (UIView *view in self.contentView.subviews) { [view removeFromSuperview]; }
     
@@ -213,16 +213,16 @@ void new_HR_MainMenuHandler_Start(void* instance) {
         devLabel.font = [UIFont fontWithName:@"HelveticaNeue-Bold" size:16];
         devLabel.textAlignment = NSTextAlignmentCenter;
         [self.contentView addSubview:devLabel];
+        
         UILabel *tgkLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, 55, 310, 25)];
-tgkLabel.text = @"Official Telegram Channel Source:";
-tgkLabel.textColor = [UIColor colorWithRed:0.7 green:0.7 blue:0.8 alpha:0.8];
-tgkLabel.font = [UIFont systemFontOfSize:13];
-tgkLabel.textAlignment = NSTextAlignmentCenter;
-[self.contentView addSubview:tgkLabel];
-// Большая неоновая кнопка перехода в ТГ канал
+        tgkLabel.text = @"Official Telegram Channel Source:";
+        tgkLabel.textColor = [UIColor colorWithRed:0.7 green:0.7 blue:0.8 alpha:0.8];
+        tgkLabel.font = [UIFont systemFontOfSize:13];
+        tgkLabel.textAlignment = NSTextAlignmentCenter;
+        [self.contentView addSubview:tgkLabel];
 UIButton *tgButton = [UIButton buttonWithType:UIButtonTypeCustom];
 tgButton.frame = CGRectMake(35, 95, 240, 45);
-tgButton.backgroundColor = [UIColor colorWithRed:0.00 green:0.53 blue:0.82 alpha:1.0]; // Цвет Telegram
+tgButton.backgroundColor = [UIColor colorWithRed:0.00 green:0.53 blue:0.82 alpha:1.0];
 [tgButton setTitle:@"@devxantapers" forState:UIControlStateNormal];
 [tgButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
 tgButton.titleLabel.font = [UIFont fontWithName:@"CourierNewPS-BoldMT" size:18];
@@ -236,24 +236,22 @@ tgButton.layer.shadowRadius = 8;
 self.contentView.contentSize = CGSizeMake(310, 240);
 }
 }
-// Конструктор создания тумблеров (свитчей)
 • (void)createSwitchWithLabel:(NSString *)labelText yPosition:(CGFloat)y action:(SEL)selector isOn:(BOOL)status {
 UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(10, y, 220, 30)];
 label.text = labelText;
 label.textColor = [UIColor whiteColor];
 label.font = [UIFont fontWithName:@"CourierNewPS-BoldMT" size:13];
 [self.contentView addSubview:label];UISwitch *toggle = [[UISwitch alloc] initWithFrame:CGRectMake(240, y, 50, 30)];
-toggle.onTintColor = [UIColor colorWithRed:0.00 green:0.80 blue:1.00 alpha:1.0]; // Голубой неон при включении
+toggle.onTintColor = [UIColor colorWithRed:0.00 green:0.80 blue:1.00 alpha:1.0];
 toggle.thumbTintColor = [UIColor colorWithRed:0.07 green:0.04 blue:0.22 alpha:1.0];
 [toggle setOn:status];
-[toggle addTarget:self action:selector forControlEvents:UIViewController.class];
+[toggle addTarget:self action:selector forControlEvents:UIControlEventValueChanged];
 [self.contentView addSubview:toggle];
 }
 • (void)godModeToggled:(UISwitch *)sender { godModeEnabled = sender.isOn; }
 • (void)timeToggled:(UISwitch *)sender { infiniteTimeEnabled = sender.isOn; }
 • (void)scoreToggled:(UISwitch *)sender { scoreMultiplierEnabled = sender.isOn; }
 • (void)moneyToggled:(UISwitch *)sender { moneyHackEnabled = sender.isOn; }
-// Прямой редирект в приложение Telegram по нажатию
 • (void)openTelegram {
 NSURL *tgURL = [NSURL URLWithString:@"tg://resolve?domain=devxantapers"];
 if ([[UIApplication sharedApplication] canOpenURL:tgURL]) {
@@ -263,18 +261,20 @@ if ([[UIApplication sharedApplication] canOpenURL:tgURL]) {
 }
 }
 @end
-// --- АВТОМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ ПРИ ЗАПУСКЕ ПРИЛОЖЕНИЯ (Инжект) ---
-static void attribute((constructor)) initializeSubstrateAndMenu() {
-// Автовызов меню через 4 секунды после старта игры (чтобы прогрузились графические слои игры)
+// --- КЛАСС ДЛЯ ПРЯМОЙ ЗАМЕНЫ УКАЗАТЕЛЕЙ ФУНКЦИЙ (БЕЗ SUBSTRATE) ---
+@interface HookManager : NSObject
+@end
+@implementation HookManager
+• (void)load {
 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 static CosmicMenuWindow *menuInstance = nil;
 menuInstance = [[CosmicMenuWindow alloc] init];
-});
-// Установка хуков перехвата памяти в UnityFramework по RVA-адресам из твоего дампа
-uintptr_t unityBase = get_UnityFramework_BaseAddress();
-MSHookFunction((void*)(unityBase + 0x3E452A4), (void*)&new_HR_PlayerHandler_OnCollisionEnter, (void**)&old_HR_PlayerHandler_OnCollisionEnter);
-MSHookFunction((void*)(unityBase + 0x3E443E0), (void*)&new_HR_PlayerHandler_Update, (void**)&old_HR_PlayerHandler_Update);
-MSHookFunction((void*)(unityBase + 0x3BA37D8), (void*)&new_GamePlayScoresManager_Update, (void**)&old_GamePlayScoresManager_Update);
-MSHookFunction((void*)(unityBase + 0x3E3CF58), (void*)&new_HR_MainMenuHandler_Start, (void**)&old_HR_MainMenuHandler_Start);
+});uintptr_t unityBase = get_UnityFramework_BaseAddress();// Заменяем указатели оригинальных функций на наши кастомные методы напрямую
+old_HR_PlayerHandler_OnCollisionEnter = (void ()(void, void*))(unityBase + 0x3E452A4);
+old_HR_PlayerHandler_Update = (void ()(void))(unityBase + 0x3E443E0);
+old_GamePlayScoresManager_Update = (void ()(void))(unityBase + 0x3BA37D8);
+old_HR_MainMenuHandler_Start = (void ()(void))(unityBase + 0x3E3CF58);
 }
+@end
+
         
