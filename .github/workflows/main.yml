@@ -1,10 +1,19 @@
-name: build-dylib
-on:
-  push:
-    branches: [ main ]
+name: Build Dylib
+on: [push, pull_request]
+
 jobs:
   build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
-      # ... и так далее (оригинальный скрипт сборщика)
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Code
+        run: |
+          xcrun -sdk iphoneos clang++ -arch arm64 -std=c++17 -fobjc-arc -miphoneos-version-min=14.0 -dynamiclib -framework UIKit -framework Foundation -framework CoreGraphics -framework QuartzCore -install_name @rpath/Xantapersdev.dylib -o Xantapersdev.dylib tweak.mm
+
+      - name: Upload Finished Dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: CosmicMenu-Xantapers
+          path: "*.dylib"
